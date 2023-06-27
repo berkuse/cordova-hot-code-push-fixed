@@ -634,33 +634,31 @@ public class HotCodePushPlugin extends CordovaPlugin {
      * Redirect user onto the page, that resides on the external storage instead of the assets folder.
      */
     private void redirectToLocalStorageIndexPage() {
-        final String indexPage = getStartingPage();
-
-        // remove query and fragment parameters from the index page path
-        // TODO: cleanup this fragment
-        String strippedIndexPage = indexPage;
-        if (strippedIndexPage.contains("#") || strippedIndexPage.contains("?")) {
-            int idx = strippedIndexPage.lastIndexOf("?");
-            if (idx >= 0) {
-                strippedIndexPage = strippedIndexPage.substring(0, idx);
-            } else {
-                idx = strippedIndexPage.lastIndexOf("#");
-                strippedIndexPage = strippedIndexPage.substring(0, idx);
+       // make sure, that index page exists
+            String external = Paths.get(fileStructure.getWwwFolder(), "index.html");
+            if (!new File(external).exists()) {
+                Log.d("CHCP", "External starting page not found. Aborting page change.");
+                return;
             }
-        }
+            try {
+                Log.d("CHCP", "begin restart app");
+                String basePath = fileStructure.getWwwFolder();
+                // try to update webview
+                Class[] cArg = new Class[1];
+                cArg[0] = String.class;
+                webView.getEngine().getClass().getDeclaredMethod("setServerBasePath", cArg).invoke(webView.getEngine(), basePath);
 
-        // make sure, that index page exists
-        String external = Paths.get(fileStructure.getWwwFolder(), strippedIndexPage);
-        if (!new File(external).exists()) {
-            Log.d("CHCP", "External starting page not found. Aborting page change.");
-            return;
-        }
+            } catch (Exception e) {
+                Log.w("CHCP","Cannot restarted through setServerBasePath", e);
+                Log.d("CHCP","Trying to restart by default");
+                try {
+                    // load index page from the external source
+                    webView.loadUrlIntoView(FILE_PREFIX + external, false);
+                } catch (Exception err) {
+                }
+            }
 
-        // load index page from the external source
-        external = Paths.get(fileStructure.getWwwFolder(), indexPage);
-        webView.loadUrlIntoView(FILE_PREFIX + external, false);
-
-        Log.d("CHCP", "Loading external page: " + external);
+            Log.d("CHCP", "Loading external page: " + external);
     }
 
     /**
